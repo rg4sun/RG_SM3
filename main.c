@@ -124,7 +124,7 @@ static const int endianTestNum = 1;
  * uchr8        -- unsigned char - 8bit
  * uint32       -- unsigned int  - 32bit
  * i            -- int
- * notBigendian -- int/bool 
+ * notBigendian -- int/bool
  * 将uchr8接收的字符数组,转换成大端表示的uint32（从底层看二进制按左高位右地位排列）
  * NOT_BIG_ENDIAN()检验环境，非大端时notBigendian为真，启用此宏函数
  */
@@ -138,15 +138,15 @@ static const int endianTestNum = 1;
 	}															\
 }
 
-/*
- * 宏函数UINT_2_UCHAR(uint32,uchr8,i,notBigendian)
- * uchr8        -- unsigned char - 8bit
- * uint32       -- unsigned int  - 32bit
- * i            -- int
- * notBigendian -- int/bool 
- * 将大端表示的uint32,转换成uchr8的字符数组
- * NOT_BIG_ENDIAN()检验环境，非大端时notBigendian为真，启用此宏函数
- */
+ /*
+  * 宏函数UINT_2_UCHAR(uint32,uchr8,i,notBigendian)
+  * uchr8        -- unsigned char - 8bit
+  * uint32       -- unsigned int  - 32bit
+  * i            -- int
+  * notBigendian -- int/bool
+  * 将大端表示的uint32,转换成uchr8的字符数组
+  * NOT_BIG_ENDIAN()检验环境，非大端时notBigendian为真，启用此宏函数
+  */
 #define UINT_2_UCHAR(uint32,uchr8,i,notBigendian)				\
 {																\
 	if(notBigendian){                                           \
@@ -157,7 +157,7 @@ static const int endianTestNum = 1;
 	}															\
 }
 
-MsgInt MsgFill512(unsigned char* msg,int notBigendian)
+MsgInt MsgFill512(unsigned char* msg, int notBigendian)
 {
 	// int msgLength = sizeof(*msg) * 8; 指针数组长度不能用sizeof算
 	//由于指针的特殊性，永远记录的首地址，而不记录所指向的数据的内存大小，因此指针数组无法求出长度
@@ -165,11 +165,11 @@ MsgInt MsgFill512(unsigned char* msg,int notBigendian)
 	//int msgLength = sizeof(msgArry) / sizeof(msgArry[0]) * 8; //。。。我好像忘了strlen了。，。
 	MsgInt filledMsgInt;
 	unsigned long long msgLength = strlen((char*)msg);// 这里必须有个强制转换，strlen不支持unsigned char*
-	unsigned long long msgbitLength = msgLength*8; // 求原始消息的比特长度
+	unsigned long long msgbitLength = msgLength * 8; // 求原始消息的比特长度
 	int zeroFill = 448 - (msgbitLength + 8) % 512; // +8是补了0x80=0b1000_0000
 	unsigned char* zeroChar = (unsigned char*)malloc(zeroFill / 8);
 
-	memset(zeroChar, 0, zeroFill/8); 
+	memset(zeroChar, 0, zeroFill / 8);
 	// 不能用strlen((char*)zeroChar),zeroChar全填0，而字符串结束标志就是0，所以strlen((char*)zeroChar)=0
 	//zeroChar[zeroFill / 8] = '\0';
 
@@ -187,21 +187,24 @@ MsgInt MsgFill512(unsigned char* msg,int notBigendian)
 	//memcpy(msgFill + msgLength + 1  + zeroFill / 8, msgLenChr, 8); // 这里填充有问题
 
 	unsigned char msgLenChr[8];
-
-	for (int i = 0; i < 8; i++) {
-		msgLenChr[i] = msgbitLength >> (56 - 8 * i);
+	if (notBigendian) { // 小端系统，long long 都是在内存中颠倒存储的，所以需要转换
+		for (int i = 0; i < 8; i++) {
+			msgLenChr[i] = msgbitLength >> (56 - 8 * i);
+		}
+		memcpy(msgFill + msgLength + 1 + zeroFill / 8, msgLenChr, 8);
 	}
-
-	memcpy(msgFill + msgLength + 1 + zeroFill / 8, msgLenChr, 8);
+	else { // 如果是大端系统，直接拷贝msgbitLength内存内容即可
+		memcpy(msgFill + msgLength + 1 + zeroFill / 8, &msgbitLength, 8);
+	}
 
 	/*printf("%d\n", msgbitLength);
 	printf("%d\n", zeroFill);
 	printf("%d\n", zeroFill / 8);
 	printf("%s\n", zeroChar);
 	printf("%d\n", strlen(zeroChar));*/
-	
+
 	for (int i = 0; i < filledMsgInt.intCount; i++) {
-		unsigned char msgSlice[4] = { *(msgFill + i*4),*(msgFill + i*4 + 1),*(msgFill + i*4 + 2),*(msgFill + i*4 + 3) };
+		unsigned char msgSlice[4] = { *(msgFill + i * 4),*(msgFill + i * 4 + 1),*(msgFill + i * 4 + 2),*(msgFill + i * 4 + 3) };
 		unsigned int a = (unsigned int*)msgSlice;
 		UCHAR_2_UINT(msgSlice, filledMsgInt.msgInt[i], 0, notBigendian);
 	}
@@ -214,19 +217,19 @@ MsgInt MsgFill512(unsigned char* msg,int notBigendian)
 int main()
 {
 	int bigendFlag = NOT_BIG_ENDIAN();
-	
+
 	unsigned char* chr = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
-	unsigned int n ;
+	unsigned int n;
 
 	//unsigned char ch[] = *chr;
 
 
-	MsgFill512(chr,bigendFlag);
+	MsgFill512(chr, bigendFlag);
 
 	UCHAR_2_UINT(chr, n, 0, bigendFlag);
 
 	//printf("%x\n%s\n", n,n);
-	
-	
+
+
 	return 0;
 }
