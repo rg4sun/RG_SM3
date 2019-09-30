@@ -165,7 +165,7 @@ MsgInt MsgFill512(unsigned char* msg,int notBigendian)
 	//int msgLength = sizeof(msgArry) / sizeof(msgArry[0]) * 8; //。。。我好像忘了strlen了。，。
 	MsgInt filledMsgInt;
 	unsigned long long msgLength = strlen((char*)msg);// 这里必须有个强制转换，strlen不支持unsigned char*
-	int msgbitLength = msgLength*8; // 求原始消息的比特长度
+	unsigned long long msgbitLength = msgLength*8; // 求原始消息的比特长度
 	int zeroFill = 448 - (msgbitLength + 8) % 512; // +8是补了0x80=0b1000_0000
 	unsigned char* zeroChar = (unsigned char*)malloc(zeroFill / 8);
 
@@ -189,7 +189,7 @@ MsgInt MsgFill512(unsigned char* msg,int notBigendian)
 	unsigned char msgLenChr[8];
 
 	for (int i = 0; i < 8; i++) {
-		msgLenChr[i] = msgLength << (56 - 8 * i);
+		msgLenChr[i] = msgbitLength >> (56 - 8 * i);
 	}
 
 	memcpy(msgFill + msgLength + 1 + zeroFill / 8, msgLenChr, 8);
