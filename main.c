@@ -7,6 +7,13 @@ typedef struct _MsgInt {
 	unsigned int* msgInt;//原始消息字符转化为int指针数组，每4个字符转化为一个int个数
 	int intCount;//int数个数
 }MsgInt;
+
+typedef struct _ExtendMsgInt {
+	unsigned int W[68];
+	unsigned int W1[64];
+}ExtendMsgInt;
+
+// =====================================================================
 unsigned int chars_unit32(unsigned int n, char b[], int i)
 {
 	(n) = ((unsigned int)(b)[(i)] << 24)
@@ -15,7 +22,6 @@ unsigned int chars_unit32(unsigned int n, char b[], int i)
 		| ((unsigned int)(b)[(i)+3]);
 	return n;
 }
-
 //将1个32位的整数存储扩展位四个字符
 void unit32_chars(unsigned int n, char b[], int i)
 {
@@ -111,6 +117,12 @@ void test4()
 //---------------------------------------------------------------------------------------------------
 
 
+// 初始向量
+const int IV[8] = {
+	0x7380166F,0x4914B2B9,0x172442D7,0xDA8A0600,
+	0xA96F30BC,0x163138AA,0xE38DEE4D,0xB0FB0E4E
+};
+
 /*
  * 宏函数NOT_BIG_ENDIAN()
  * 用于测试运行环境是否为大端，小端返回true
@@ -118,6 +130,40 @@ void test4()
 static const int endianTestNum = 1;
 #define NOT_BIG_ENDIAN() ( *(char *)&endianTestNum == 1 )
 
+#define FF_LOW(x,y,z) ( (x) ^ (y) ^ (z))
+#define FF_HIGH(x,y,z) (((x) & (y)) | ( (x) & (z)) | ( (y) & (z)))
+
+//#define FF(x,y,z,j)									\
+//{													\
+//	if(j<16){										\
+//		((x) ^ (y) ^ (z));							\
+//	}												\
+//	else{											\
+//		(((x)& (y)) | ((x) & (z)) | ((y) & (z)));	\
+//	}												\
+//}
+
+
+
+
+#define GG_LOW(x,y,z) ( (x) ^ (y) ^ (z))
+#define GG_HIGH(x,y,z) (((x) & (y)) | ( (~(x)) & (z)) )
+
+
+//unsigned int ROTATE_LEFT(unsigned int word, unsigned int bits)
+//{
+//	word = ((word) << (bits) | (word) >> (32 - (bits)));
+//	return word;
+//}
+
+#define ROTATE_LEFT(uint32,shift) ( (uint32) = ( ( (uint32) << (shift) ) | ( (uint32) >> (32 - (shift)) ) ) )
+
+
+//#define  SHL(x,n) (((x) & 0xFFFFFFFF) << n)
+//#define ROTL(x,n) (SHL((x),n) | ((x) >> (32 - n)))
+
+#define P0(x) ((x) ^  ROTATE_LEFT((x),9) ^ ROTATE_LEFT((x),17))
+#define P1(x) ((x) ^  ROTATE_LEFT((x),15) ^ ROTATE_LEFT((x),23))
 
 /*
  * 宏函数UCHAR_2_UINT(uchr8,uint32,i,notBigendian)
@@ -171,7 +217,9 @@ MsgInt MsgFill512(unsigned char* msg, int notBigendian)
 
 	memset(zeroChar, 0, zeroFill / 8);
 	// 不能用strlen((char*)zeroChar),zeroChar全填0，而字符串结束标志就是0，所以strlen((char*)zeroChar)=0
-	//zeroChar[zeroFill / 8] = '\0';
+	// 直接用memset从内存中拷贝值
+	//zeroChar[zeroFill / 8] = '\0'; // 这个不需要加，直接从内存拷贝，不用确认是不是字符串，也无需加结束符
+	// 实际上，zeroChar里面填充的全部0，在字符串识别来看都是结束符/0
 
 	int totalChrLength = msgLength + 1 + zeroFill / 8 + 8;
 
@@ -214,6 +262,28 @@ MsgInt MsgFill512(unsigned char* msg, int notBigendian)
 	return filledMsgInt;
 }
 
+ExtendMsgInt MsgExtend(unsigned int msgInt16[])
+{
+	ExtendMsgInt etdMsgInt;
+
+	for (int i = 0; i < 16; i++) {
+		etdMsgInt.W[i] = msgInt16[i];
+	}
+	for (int j = 16; j < 68; j++) {
+		unsigned int tmp;
+		tmp = etdMsgInt.W[j - 16] ^ etdMsgInt.W[j - 9] ^ ROTATE_LEFT(etdMsgInt.W[j - 3], 15);
+		etdMsgInt.W[j] = P1(tmp) ^ ROTATE_LEFT(etdMsgInt.W[j - 13], 7) ^ etdMsgInt.W[j - 6];
+	}
+	for (int j = 0; j < 64; j++) {
+		etdMsgInt.W1[j] = etdMsgInt.W[j] ^ etdMsgInt.W[j + 4];
+	}
+	return etdMsgInt;
+}
+
+
+
+
+
 int main()
 {
 	int bigendFlag = NOT_BIG_ENDIAN();
@@ -224,7 +294,14 @@ int main()
 	//unsigned char ch[] = *chr;
 
 
-	MsgFill512(chr, bigendFlag);
+	//MsgFill512(chr, bigendFlag);
+
+	unsigned int a = 0x61626364;
+	printf("%016x\n", a);
+	ROTATE_LEFT(a, 2);
+	printf("%016x\n", a);
+
+
 
 	UCHAR_2_UINT(chr, n, 0, bigendFlag);
 
