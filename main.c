@@ -257,9 +257,7 @@ MsgInt MsgFill512(unsigned char* msg, int notBigendian)
 		unsigned int a = (unsigned int*)msgSlice;
 		UCHAR_2_UINT(msgSlice, filledMsgInt.msgInt[i], 0, notBigendian);
 	}
-	/*for (int i = 0; i < filledMsgInt.intCount; i++) {
-		printf("%08x", filledMsgInt.msgInt[i]);
-	}*/
+
 	return filledMsgInt;
 }
 
@@ -282,6 +280,44 @@ ExtendMsgInt MsgExtend(unsigned int msgInt16[])
 	return etdMsgInt;
 }
 
+unsigned int CF(unsigned int Vi[], unsigned int msgInt16[], unsigned int W[], unsigned int W1[])
+{
+	unsigned int regA2H[8]; // A~H 8个寄存器
+	unsigned int SS1, SS2, TT1, TT2;
+
+	for (int i = 0; i < 8; i++) {
+		regA2H[i] = Vi[i];
+	}
+	for (int j = 0; j < 64; j++) {
+		unsigned int T = 0x79cc4519; // 文档中的常量Tj，此处用T
+		if (j >= 16) {
+			T = 0x7a879d8a;
+		}
+		SS1 = ROTATE_LEFT(ROTATE_LEFT(regA2H[0], 12) + regA2H[4] + ROTATE_LEFT(T, j), 7);
+		SS2 = SS1 ^ ROTATE_LEFT(regA2H[0], 12);
+		if (j < 16) {
+			TT1 = FF_LOW(regA2H[0], regA2H[1], regA2H[2]) + regA2H[3] + SS2 + W1[j];
+			TT2 = GG_LOW(regA2H[4], regA2H[5], regA2H[6]) + regA2H[7] + SS1 + W[j];
+		}
+		else {
+			TT1 = FF_HIGH(regA2H[0], regA2H[1], regA2H[2]) + regA2H[3] + SS2 + W1[j];
+			TT2 = GG_HIGH(regA2H[4], regA2H[5], regA2H[6]) + regA2H[7] + SS1 + W[j];
+		}
+		regA2H[3] = regA2H[2];
+		regA2H[2] = ROTATE_LEFT(regA2H[1], 9);
+		regA2H[1] = regA2H[0];
+		regA2H[0] = TT1;
+		regA2H[7] = regA2H[6];
+		regA2H[6] = ROTATE_LEFT(regA2H[5], 19);
+		regA2H[5] = regA2H[4];
+		regA2H[4] = P0(TT2);
+	}
+	for (int i = 0; i < 8; i++) { // 计算 ABCDEFH ^ Vi
+		regA2H[i] ^= Vi[i];
+	}
+	return regA2H;
+}
+
 
 
 
@@ -292,7 +328,6 @@ int main()
 	int bigendFlag = NOT_BIG_ENDIAN();
 
 	unsigned char* chr = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
-	unsigned int n;
 
 	MsgInt msgInt;
 	ExtendMsgInt etdMsgInt;
@@ -319,7 +354,7 @@ int main()
 	for (int i = 0; i < 64; i++) {
 		printf("%08x ", etdMsgInt.W1[i]);
 	}
-	
+
 
 	return 0;
 }
