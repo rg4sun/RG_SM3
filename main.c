@@ -322,11 +322,19 @@ unsigned int* SM3Hash(unsigned char* msgText, int notBigendian) {
 	MsgInt filledMsgInt = MsgFill512(msgText, notBigendian);
 	// 对填充好的消息按512bit进行分组，即每16个int一组
 	int groupAmount = filledMsgInt.intCount / 16; 
-	unsigned int* V = IV;
+	//unsigned int* V = IV;
+
+	unsigned int V[8];
+	for (int i = 0; i < 8; i++) {
+		V[i] = IV[i];
+	}
 	for (int i = 0; i < groupAmount; i++) {
 		unsigned int* bi = 16 * i + filledMsgInt.msgInt;
 		ExtendMsgInt etdMsgInt = MsgExtend(bi);
-		V = CF(V, bi, etdMsgInt.W, etdMsgInt.W1); // 每一轮压缩更新V
+		unsigned int* temp = CF(V, bi, etdMsgInt.W, etdMsgInt.W1); // 每一轮压缩更新V
+		for (int i = 0; i < 8; i++) {
+			V[i] = temp[i];
+		}
 	}
 	return V;
 }
@@ -336,7 +344,7 @@ void test()
 {
 	int bigendFlag = NOT_BIG_ENDIAN();
 
-	unsigned char* chr = "abc";//dabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
+	unsigned char* chr = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
 
 	MsgInt msgInt;
 	ExtendMsgInt etdMsgInt;
@@ -370,13 +378,24 @@ int main()
 {
 	int bigendFlag = NOT_BIG_ENDIAN();
 
-	unsigned char* chr = "abc";//dabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
+	unsigned char* chr = "你好么";
 	unsigned int* hashInt = SM3Hash(chr, bigendFlag);
 
+	unsigned int result[8];
+
 	for (int i = 0; i < 8; i++) {
-		printf("%08x ", hashInt[i]);
+		result[i] = hashInt[i];
+	}
+
+	//printf("%08x ", hashInt[0]);
+	//printf("%08x ", hashInt[1]);
+	//printf("%08x ", hashInt[2]);
+	for (int i = 0; i < 8; i++) {
+		printf("%08x ", result[i]);
 	}
 	printf("\n");
+
+	//test();
 
 	return 0;
 }
