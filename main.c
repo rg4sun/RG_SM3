@@ -156,8 +156,9 @@ static const int endianTestNum = 1;
 //	return word;
 //}
 
-#define ROTATE_LEFT(uint32,shift) ( (uint32) = ( ( (uint32) << (shift) ) | ( (uint32) >> (32 - (shift)) ) ) )
-
+//#define ROTATE_LEFT(uint32,shift) ( (uint32) = ( ( (uint32) << (shift) ) | ( (uint32) >> (32 - (shift)) ) ) )
+// 上面写的会改变传入的参数的值，影响MsgExtend函数里W 的运算
+#define ROTATE_LEFT(uint32,shift) ( ( ( (uint32) << (shift) ) | ( (uint32) >> (32 - (shift)) ) ) )
 
 //#define  SHL(x,n) (((x) & 0xFFFFFFFF) << n)
 //#define ROTL(x,n) (SHL((x),n) | ((x) >> (32 - n)))
@@ -256,9 +257,9 @@ MsgInt MsgFill512(unsigned char* msg, int notBigendian)
 		unsigned int a = (unsigned int*)msgSlice;
 		UCHAR_2_UINT(msgSlice, filledMsgInt.msgInt[i], 0, notBigendian);
 	}
-	for (int i = 0; i < filledMsgInt.intCount; i++) {
+	/*for (int i = 0; i < filledMsgInt.intCount; i++) {
 		printf("%08x", filledMsgInt.msgInt[i]);
-	}
+	}*/
 	return filledMsgInt;
 }
 
@@ -272,6 +273,7 @@ ExtendMsgInt MsgExtend(unsigned int msgInt16[])
 	for (int j = 16; j < 68; j++) {
 		unsigned int tmp;
 		tmp = etdMsgInt.W[j - 16] ^ etdMsgInt.W[j - 9] ^ ROTATE_LEFT(etdMsgInt.W[j - 3], 15);
+		// 好像找到W数组会莫名被修改的原因了，好像是ROTATE_LEFT会改变传入的参数
 		etdMsgInt.W[j] = P1(tmp) ^ ROTATE_LEFT(etdMsgInt.W[j - 13], 7) ^ etdMsgInt.W[j - 6];
 	}
 	for (int j = 0; j < 64; j++) {
@@ -284,6 +286,7 @@ ExtendMsgInt MsgExtend(unsigned int msgInt16[])
 
 
 
+
 int main()
 {
 	int bigendFlag = NOT_BIG_ENDIAN();
@@ -291,22 +294,32 @@ int main()
 	unsigned char* chr = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
 	unsigned int n;
 
+	MsgInt msgInt;
+	ExtendMsgInt etdMsgInt;
 	//unsigned char ch[] = *chr;
 
 
-	//MsgFill512(chr, bigendFlag);
+	msgInt = MsgFill512(chr, bigendFlag);
 
-	unsigned int a = 0x61626364;
-	printf("%016x\n", a);
-	ROTATE_LEFT(a, 2);
-	printf("%016x\n", a);
+	//消息填充输出测试
+	puts("------- 消息填充输出测试 -------");
+	for (int i = 0; i < msgInt.intCount; i++) {
+		printf("%08x ", msgInt.msgInt[i]);
+	}
 
+	etdMsgInt = MsgExtend(msgInt.msgInt);
 
-
-	UCHAR_2_UINT(chr, n, 0, bigendFlag);
-
-	//printf("%x\n%s\n", n,n);
-
+	//消息扩展输出测试
+	puts("\n------- 消息扩展输出测试 -------");
+	printf("W0---W67:\n");
+	for (int i = 0; i < 68; i++) {
+		printf("%08x ", etdMsgInt.W[i]);
+	}
+	printf("\n\nW1_0----W1_63:\n");
+	for (int i = 0; i < 64; i++) {
+		printf("%08x ", etdMsgInt.W1[i]);
+	}
+	
 
 	return 0;
 }
