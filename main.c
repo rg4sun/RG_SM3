@@ -377,5 +377,6 @@ int main()
 		printf("%08x ", hashInt[i]);
 	}
 	printf("\n");
+
 	return 0;
 }
