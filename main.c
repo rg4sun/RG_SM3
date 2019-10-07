@@ -118,7 +118,7 @@ void test4()
 
 
 // 初始向量
-const int IV[8] = {
+const unsigned int IV[8] = {
 	0x7380166F,0x4914B2B9,0x172442D7,0xDA8A0600,
 	0xA96F30BC,0x163138AA,0xE38DEE4D,0xB0FB0E4E
 };
@@ -280,7 +280,7 @@ ExtendMsgInt MsgExtend(unsigned int msgInt16[])
 	return etdMsgInt;
 }
 
-unsigned int CF(unsigned int Vi[], unsigned int msgInt16[], unsigned int W[], unsigned int W1[])
+unsigned int* CF(unsigned int Vi[], unsigned int msgInt16[], unsigned int W[], unsigned int W1[])
 {
 	unsigned int regA2H[8]; // A~H 8个寄存器
 	unsigned int SS1, SS2, TT1, TT2;
@@ -318,16 +318,25 @@ unsigned int CF(unsigned int Vi[], unsigned int msgInt16[], unsigned int W[], un
 	return regA2H;
 }
 
+unsigned int* SM3Hash(unsigned char* msgText, int notBigendian) {
+	MsgInt filledMsgInt = MsgFill512(msgText, notBigendian);
+	// 对填充好的消息按512bit进行分组，即每16个int一组
+	int groupAmount = filledMsgInt.intCount / 16; 
+	unsigned int* V = IV;
+	for (int i = 0; i < groupAmount; i++) {
+		unsigned int* bi = 16 * i + filledMsgInt.msgInt;
+		ExtendMsgInt etdMsgInt = MsgExtend(bi);
+		V = CF(V, bi, etdMsgInt.W, etdMsgInt.W1); // 每一轮压缩更新V
+	}
+	return V;
+}
 
 
-
-
-
-int main()
+void test()
 {
 	int bigendFlag = NOT_BIG_ENDIAN();
 
-	unsigned char* chr = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
+	unsigned char* chr = "abc";//dabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
 
 	MsgInt msgInt;
 	ExtendMsgInt etdMsgInt;
@@ -354,7 +363,19 @@ int main()
 	for (int i = 0; i < 64; i++) {
 		printf("%08x ", etdMsgInt.W1[i]);
 	}
+}
 
 
+int main()
+{
+	int bigendFlag = NOT_BIG_ENDIAN();
+
+	unsigned char* chr = "abc";//dabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
+	unsigned int* hashInt = SM3Hash(chr, bigendFlag);
+
+	for (int i = 0; i < 8; i++) {
+		printf("%08x ", hashInt[i]);
+	}
+	printf("\n");
 	return 0;
 }
