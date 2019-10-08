@@ -318,10 +318,10 @@ unsigned int* CF(unsigned int Vi[], unsigned int msgInt16[], unsigned int W[], u
 	return regA2H;
 }
 
-unsigned int* SM3Hash(unsigned char* msgText, int notBigendian) {
+unsigned char* SM3Hash(unsigned char* msgText, int notBigendian) {
 	MsgInt filledMsgInt = MsgFill512(msgText, notBigendian);
 	// 对填充好的消息按512bit进行分组，即每16个int一组
-	int groupAmount = filledMsgInt.intCount / 16; 
+	int groupAmount = filledMsgInt.intCount / 16;
 	//unsigned int* V = IV;
 
 	unsigned int V[8];
@@ -336,11 +336,16 @@ unsigned int* SM3Hash(unsigned char* msgText, int notBigendian) {
 			V[i] = temp[i];
 		}
 	}
-	return V;
-	char sm3HashValue[32];
+	// 直接输出int型的杂凑值测试
+	/*for (int i = 0; i < 8; i++) {
+		printf("%08x ", V[i]);
+	}*/
+	//return V;
+	unsigned char sm3HashValue[32];
 	for (int i = 0; i < 8; i++) {
 		UINT_2_UCHAR(V[i], sm3HashValue, 4 * i, notBigendian);
 	}
+	return sm3HashValue;
 }
 
 
@@ -382,20 +387,14 @@ int main()
 {
 	int bigendFlag = NOT_BIG_ENDIAN();
 
-	unsigned char* chr = "你好么";
-	unsigned int* hashInt = SM3Hash(chr, bigendFlag);
+	unsigned char* chr = "abc";
+	unsigned char* hashChr = SM3Hash(chr, bigendFlag);
 
-	unsigned int result[8];
-
-	for (int i = 0; i < 8; i++) {
-		result[i] = hashInt[i];
-	}
-
-	//printf("%08x ", hashInt[0]);
-	//printf("%08x ", hashInt[1]);
-	//printf("%08x ", hashInt[2]);
-	for (int i = 0; i < 8; i++) {
-		printf("%08x ", result[i]);
+	for (int i = 0; i < 32; i++) {
+		printf("%02x", hashChr[i]);
+		if (i != 0 && i % 4 == 0) {
+			printf(" ");
+		}
 	}
 	printf("\n");
 
