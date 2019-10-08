@@ -13,110 +13,6 @@ typedef struct _ExtendMsgInt {
 	unsigned int W1[64];
 }ExtendMsgInt;
 
-// =====================================================================
-unsigned int chars_unit32(unsigned int n, char b[], int i)
-{
-	(n) = ((unsigned int)(b)[(i)] << 24)
-		| ((unsigned int)(b)[(i)+1] << 16)
-		| ((unsigned int)(b)[(i)+2] << 8)
-		| ((unsigned int)(b)[(i)+3]);
-	return n;
-}
-//将1个32位的整数存储扩展位四个字符
-void unit32_chars(unsigned int n, char b[], int i)
-{
-	b[i] = (char)((n) >> 24);
-	b[i + 1] = (char)((n) >> 16);
-	b[i + 2] = (char)((n) >> 8);
-	b[i + 3] = (char)((n));
-
-}
-
-void bigEnd()
-{
-	char c;
-	int a = 1;
-	// 由于int为4Byte，逻辑顺序展开成16进制1=0x0000_0001，
-	// 如果是大端则在内存中同逻辑顺序 00 00 00 01，
-	// 而小端则存在内存中是 01 00 00 00 （按字节，即8bit为块，高低地址颠倒）
-	int* p = &a; // 用p指针指向a的首地址
-	c = *p; // c是char类型，1Byte，读取首地址开始1个字节
-	if (c == a) // 如果 c的值刚好是1=a的话，说明颠倒了，则是小端
-	{
-		printf("本机为小端存储\n");
-	}
-	else
-	{
-		printf("本机为大端存储\n");
-	}
-}
-
-//void test()
-//{
-//	unsigned char a[2] = { 0b01100001, 0b01100010 };
-//	unsigned char b[2] = { 0b01100011, 0b01100010 };
-//	//						   0b01100001, 0b01100010
-//	unsigned char* c = (unsigned char*)malloc(2);
-//
-//	//*c = *a & *b;
-//}
-
-void test2()
-{
-	unsigned char* str = "abcdefg";
-	unsigned int* a = (unsigned int*)malloc(sizeof(*str));
-	unsigned int n = 0;
-	char* s = "abcd";
-
-	a = str;
-
-	printf("%x\n", *a);
-	printf("%s\n", a);
-
-	unsigned int b = chars_unit32(n, s, 0);
-
-	printf("%d\n", b);
-}
-
-void test3()
-{
-	unsigned char a = 'a';
-	unsigned char b = 'b';
-	unsigned char c = 'c';
-	unsigned char d = 'd';
-
-	unsigned int m = (unsigned int)"abcd";
-	unsigned int aa = (unsigned int)a;
-	unsigned int aaa = aa << 24;
-	unsigned int bb = (unsigned int)b;
-	unsigned int bbb = bb << 16;
-	unsigned int dd = (unsigned int)d;
-
-	unsigned int n = ((unsigned int)a << 24)
-		| ((unsigned int)b << 16)
-		| ((unsigned int)c << 8)
-		| ((unsigned int)d);
-
-	printf("%d\n", m);
-	printf("%x\n", n);
-
-	printf("%d\n", sizeof(unsigned long));
-	printf("%d\n", sizeof(unsigned int));
-	printf("%d\n", sizeof(unsigned __int32)); // 微软标准
-	printf("%d\n", sizeof(unsigned __int64));
-	//printf("%d\n", sizeof(int32_t));
-
-}
-
-void test4()
-{
-	unsigned long long a = 0x7;
-	printf("%d\n", sizeof(unsigned long));
-}
-
-//---------------------------------------------------------------------------------------------------
-
-
 // 初始向量
 const unsigned int IV[8] = {
 	0x7380166F,0x4914B2B9,0x172442D7,0xDA8A0600,
@@ -133,35 +29,12 @@ static const int endianTestNum = 1;
 #define FF_LOW(x,y,z) ( (x) ^ (y) ^ (z))
 #define FF_HIGH(x,y,z) (((x) & (y)) | ( (x) & (z)) | ( (y) & (z)))
 
-//#define FF(x,y,z,j)									\
-//{													\
-//	if(j<16){										\
-//		((x) ^ (y) ^ (z));							\
-//	}												\
-//	else{											\
-//		(((x)& (y)) | ((x) & (z)) | ((y) & (z)));	\
-//	}												\
-//}
-
-
-
-
 #define GG_LOW(x,y,z) ( (x) ^ (y) ^ (z))
 #define GG_HIGH(x,y,z) (((x) & (y)) | ( (~(x)) & (z)) )
-
-
-//unsigned int ROTATE_LEFT(unsigned int word, unsigned int bits)
-//{
-//	word = ((word) << (bits) | (word) >> (32 - (bits)));
-//	return word;
-//}
 
 //#define ROTATE_LEFT(uint32,shift) ( (uint32) = ( ( (uint32) << (shift) ) | ( (uint32) >> (32 - (shift)) ) ) )
 // 上面写的会改变传入的参数的值，影响MsgExtend函数里W 的运算
 #define ROTATE_LEFT(uint32,shift) ( ( ( (uint32) << (shift) ) | ( (uint32) >> (32 - (shift)) ) ) )
-
-//#define  SHL(x,n) (((x) & 0xFFFFFFFF) << n)
-//#define ROTL(x,n) (SHL((x),n) | ((x) >> (32 - n)))
 
 #define P0(x) ((x) ^  ROTATE_LEFT((x),9) ^ ROTATE_LEFT((x),17))
 #define P1(x) ((x) ^  ROTATE_LEFT((x),15) ^ ROTATE_LEFT((x),23))
@@ -271,7 +144,7 @@ ExtendMsgInt MsgExtend(unsigned int msgInt16[])
 	for (int j = 16; j < 68; j++) {
 		unsigned int tmp;
 		tmp = etdMsgInt.W[j - 16] ^ etdMsgInt.W[j - 9] ^ ROTATE_LEFT(etdMsgInt.W[j - 3], 15);
-		// 好像找到W数组会莫名被修改的原因了，好像是ROTATE_LEFT会改变传入的参数
+		// 找到W数组会莫名被修改的原因了，是ROTATE_LEFT会改变传入的参数，现已修改了ROTATE_LEFT
 		etdMsgInt.W[j] = P1(tmp) ^ ROTATE_LEFT(etdMsgInt.W[j - 13], 7) ^ etdMsgInt.W[j - 6];
 	}
 	for (int j = 0; j < 64; j++) {
@@ -283,7 +156,7 @@ ExtendMsgInt MsgExtend(unsigned int msgInt16[])
 unsigned int* CF(unsigned int Vi[], unsigned int msgInt16[], unsigned int W[], unsigned int W1[])
 {
 	unsigned int regA2H[8]; // A~H 8个寄存器
-	unsigned int SS1, SS2, TT1, TT2;
+	unsigned int SS1, SS2, TT1, TT2; // 中间变量
 
 	for (int i = 0; i < 8; i++) {
 		regA2H[i] = Vi[i];
@@ -348,48 +221,53 @@ unsigned char* SM3Hash(unsigned char* msgText, int notBigendian) {
 	return sm3HashValue;
 }
 
-
-void test()
+// SM3所有操作已完成，以下为测试函数了
+// 填充和扩展的输出测试
+void Fill_N_extend_test(unsigned chr[])
 {
 	int bigendFlag = NOT_BIG_ENDIAN();
 
-	unsigned char* chr = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
+	//unsigned char* chr = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
 
-	MsgInt msgInt;
+	MsgInt filledMsgInt = MsgFill512(chr, bigendFlag);
 	ExtendMsgInt etdMsgInt;
-	//unsigned char ch[] = *chr;
-
-
-	msgInt = MsgFill512(chr, bigendFlag);
+	//unsigned char ch[] = *chr; 
+	int groupAmount = filledMsgInt.intCount / 16;
 
 	//消息填充输出测试
-	puts("------- 消息填充输出测试 -------");
-	for (int i = 0; i < msgInt.intCount; i++) {
-		printf("%08x ", msgInt.msgInt[i]);
+	puts("------- 消息填充输出测试 -------\n");
+	for (int i = 0; i < filledMsgInt.intCount; i++) {
+		printf("%08x ", filledMsgInt.msgInt[i]);
 	}
-
-	etdMsgInt = MsgExtend(msgInt.msgInt);
 
 	//消息扩展输出测试
-	puts("\n------- 消息扩展输出测试 -------");
-	printf("W0---W67:\n");
-	for (int i = 0; i < 68; i++) {
-		printf("%08x ", etdMsgInt.W[i]);
+	for (int i = 0; i < groupAmount; i++) {
+		unsigned int* bi = 16 * i + filledMsgInt.msgInt;
+		ExtendMsgInt etdMsgInt = MsgExtend(bi);
+		printf("\n\n------- 消息扩展输出测试 第%d组-------\n", i+1);
+		printf("\nW0---W67:\n");
+		for (int i = 0; i < 68; i++) {
+			printf("%08x ", etdMsgInt.W[i]);
+		}
+		printf("\n\nW1_0----W1_63:\n");
+		for (int i = 0; i < 64; i++) {
+			printf("%08x ", etdMsgInt.W1[i]);
+		}
+		printf("\n");
 	}
-	printf("\n\nW1_0----W1_63:\n");
-	for (int i = 0; i < 64; i++) {
-		printf("%08x ", etdMsgInt.W1[i]);
-	}
+
 }
 
-
-int main()
-{
+// 文档示例一
+void Eg1_test() {
 	int bigendFlag = NOT_BIG_ENDIAN();
 
 	unsigned char* chr = "abc";
 	unsigned char* hashChr = SM3Hash(chr, bigendFlag);
 
+	puts("-------------------- 文档示例1 --------------------\n\n");
+	Fill_N_extend_test(chr);
+	puts("\n Eg1 hash value: ");
 	for (int i = 0; i < 32; i++) {
 		printf("%02x", hashChr[i]);
 		if (i != 0 && i % 4 == 0) {
@@ -397,8 +275,32 @@ int main()
 		}
 	}
 	printf("\n");
+}
 
-	//test();
+// 文档示例二
+void Eg2_test() {
+	int bigendFlag = NOT_BIG_ENDIAN();
+
+	unsigned char* chr = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
+	unsigned char* hashChr = SM3Hash(chr, bigendFlag);
+	// 运算没问题，但是返回给指针之后到下面的puts调用时，会破坏hashChr指向的内存内容
+
+	puts("-------------------- 文档示例2 --------------------\n\n");
+	//Fill_N_extend_test(chr);
+	puts("\n Eg2 hash value: ");
+	for (int i = 0; i < 32; i++) {
+		printf("%02x", hashChr[i]);
+		if (i != 0 && i % 4 == 0) {
+			printf(" ");
+		}
+	}
+	printf("\n");
+}
+
+int main()
+{
+	//Eg1_test();
+	Eg2_test();
 
 	return 0;
 }
