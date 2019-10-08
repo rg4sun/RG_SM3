@@ -197,9 +197,9 @@ static const int endianTestNum = 1;
 #define UINT_2_UCHAR(uint32,uchr8,i,notBigendian)				\
 {																\
 	if(notBigendian){                                           \
-		(uchr8)[(i)    ] = (unsigned char)((uint32) >> 24)		\
-		(uchr8)[(i) + 1] = (unsigned char)((uint32) >> 16)		\
-		(uchr8)[(i) + 2] = (unsigned char)((uint32) >> 8 )		\
+		(uchr8)[(i)    ] = (unsigned char)((uint32) >> 24);		\
+		(uchr8)[(i) + 1] = (unsigned char)((uint32) >> 16);		\
+		(uchr8)[(i) + 2] = (unsigned char)((uint32) >> 8 );		\
 		(uchr8)[(i) + 3] = (unsigned char)((uint32)      );		\
 	}															\
 }
@@ -337,6 +337,10 @@ unsigned int* SM3Hash(unsigned char* msgText, int notBigendian) {
 		}
 	}
 	return V;
+	char sm3HashValue[32];
+	for (int i = 0; i < 8; i++) {
+		UINT_2_UCHAR(V[i], sm3HashValue, 4 * i, notBigendian);
+	}
 }
 
 
