@@ -127,7 +127,7 @@ MsgInt MsgFill512(unsigned char* msg, int notBigendian)
 
 	for (int i = 0; i < filledMsgInt.intCount; i++) {
 		unsigned char msgSlice[4] = { *(msgFill + i * 4),*(msgFill + i * 4 + 1),*(msgFill + i * 4 + 2),*(msgFill + i * 4 + 3) };
-		unsigned int a = (unsigned int*)msgSlice;
+		//unsigned int a = (unsigned int*)msgSlice;
 		UCHAR_2_UINT(msgSlice, filledMsgInt.msgInt[i], 0, notBigendian);
 	}
 
@@ -153,7 +153,7 @@ ExtendMsgInt MsgExtend(unsigned int msgInt16[])
 	return etdMsgInt;
 }
 
-unsigned int* CF(unsigned int Vi[], unsigned int msgInt16[], unsigned int W[], unsigned int W1[])
+void CF(unsigned int Vi[], unsigned int msgInt16[], unsigned int W[], unsigned int W1[])
 {
 	unsigned int regA2H[8]; // A~H 8个寄存器
 	unsigned int SS1, SS2, TT1, TT2; // 中间变量
@@ -187,11 +187,42 @@ unsigned int* CF(unsigned int Vi[], unsigned int msgInt16[], unsigned int W[], u
 	}
 	for (int i = 0; i < 8; i++) { // 计算 ABCDEFH ^ Vi
 		regA2H[i] ^= Vi[i];
+		Vi[i] = regA2H[i];
 	}
-	return regA2H;
+	//return regA2H;
 }
 
-unsigned char* SM3Hash(unsigned char* msgText, int notBigendian) {
+//unsigned char* SM3Hash_Old(unsigned char* msgText, int notBigendian) {
+//	MsgInt filledMsgInt = MsgFill512(msgText, notBigendian);
+//	// 对填充好的消息按512bit进行分组，即每16个int一组
+//	int groupAmount = filledMsgInt.intCount / 16;
+//	//unsigned int* V = IV;
+//
+//	unsigned int V[8];
+//	for (int i = 0; i < 8; i++) {
+//		V[i] = IV[i];
+//	}
+//	for (int i = 0; i < groupAmount; i++) {
+//		unsigned int* bi = 16 * i + filledMsgInt.msgInt;
+//		ExtendMsgInt etdMsgInt = MsgExtend(bi);
+//		unsigned int* temp = CF(V, bi, etdMsgInt.W, etdMsgInt.W1); // 每一轮压缩更新V
+//		for (int i = 0; i < 8; i++) {
+//			V[i] = temp[i];
+//		}
+//	}
+//	// 直接输出int型的杂凑值测试
+//	/*for (int i = 0; i < 8; i++) {
+//		printf("%08x ", V[i]);
+//	}*/
+//	//return V;
+//	unsigned char sm3HashValue[32];
+//	for (int i = 0; i < 8; i++) {
+//		UINT_2_UCHAR(V[i], sm3HashValue, 4 * i, notBigendian);
+//	}
+//	return sm3HashValue;
+//}
+
+void SM3Hash(unsigned char* msgText, int notBigendian, unsigned char sm3HashChr32[]) {
 	MsgInt filledMsgInt = MsgFill512(msgText, notBigendian);
 	// 对填充好的消息按512bit进行分组，即每16个int一组
 	int groupAmount = filledMsgInt.intCount / 16;
@@ -204,33 +235,32 @@ unsigned char* SM3Hash(unsigned char* msgText, int notBigendian) {
 	for (int i = 0; i < groupAmount; i++) {
 		unsigned int* bi = 16 * i + filledMsgInt.msgInt;
 		ExtendMsgInt etdMsgInt = MsgExtend(bi);
-		unsigned int* temp = CF(V, bi, etdMsgInt.W, etdMsgInt.W1); // 每一轮压缩更新V
-		for (int i = 0; i < 8; i++) {
-			V[i] = temp[i];
-		}
+		//unsigned int* temp = CF(V, bi, etdMsgInt.W, etdMsgInt.W1); // 每一轮压缩更新V
+		//for (int i = 0; i < 8; i++) {
+		//	V[i] = temp[i];
+		//}
+		CF(V, bi, etdMsgInt.W, etdMsgInt.W1); // 每一轮压缩更新V
 	}
 	// 直接输出int型的杂凑值测试
 	/*for (int i = 0; i < 8; i++) {
 		printf("%08x ", V[i]);
 	}*/
 	//return V;
-	unsigned char sm3HashValue[32];
+	//unsigned char sm3HashValue[32];
 	for (int i = 0; i < 8; i++) {
-		UINT_2_UCHAR(V[i], sm3HashValue, 4 * i, notBigendian);
+		UINT_2_UCHAR(V[i], sm3HashChr32, 4 * i, notBigendian);
 	}
-	return sm3HashValue;
 }
 
 // SM3所有操作已完成，以下为测试函数了
 // 填充和扩展的输出测试
-void Fill_N_extend_test(unsigned chr[])
+void Fill_N_extend_test(unsigned char chr[])
 {
 	int bigendFlag = NOT_BIG_ENDIAN();
 
 	//unsigned char* chr = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
 
 	MsgInt filledMsgInt = MsgFill512(chr, bigendFlag);
-	ExtendMsgInt etdMsgInt;
 	//unsigned char ch[] = *chr; 
 	int groupAmount = filledMsgInt.intCount / 16;
 
@@ -263,10 +293,13 @@ void Eg1_test() {
 	int bigendFlag = NOT_BIG_ENDIAN();
 
 	unsigned char* chr = "abc";
-	unsigned char* hashChr = SM3Hash(chr, bigendFlag);
+	//unsigned char* hashChr = SM3Hash_Old(chr, bigendFlag);
+	unsigned char hashChr[32];
+
+	SM3Hash(chr, bigendFlag, hashChr);
 
 	puts("-------------------- 文档示例1 --------------------\n\n");
-	Fill_N_extend_test(chr);
+	//Fill_N_extend_test(chr);
 	puts("\n Eg1 hash value: ");
 	for (int i = 0; i < 32; i++) {
 		printf("%02x", hashChr[i]);
@@ -280,10 +313,13 @@ void Eg1_test() {
 // 文档示例二
 void Eg2_test() {
 	int bigendFlag = NOT_BIG_ENDIAN();
-
 	unsigned char* chr = "abcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcdabcd";
-	unsigned char* hashChr = SM3Hash(chr, bigendFlag);
+
+	//unsigned char* hashChr = SM3Hash_Old(chr, bigendFlag);
 	// 运算没问题，但是返回给指针之后到下面的puts调用时，会破坏hashChr指向的内存内容
+	unsigned char hashChr[32];
+
+	SM3Hash(chr, bigendFlag, hashChr);
 
 	puts("-------------------- 文档示例2 --------------------\n\n");
 	//Fill_N_extend_test(chr);
@@ -299,7 +335,7 @@ void Eg2_test() {
 
 int main()
 {
-	//Eg1_test();
+	Eg1_test();
 	Eg2_test();
 
 	return 0;
